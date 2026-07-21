@@ -1,137 +1,131 @@
-# Amygdal
-Privacy-focused Firefox fork with local website reputation scoring, built-in ad blocking, cookie banner removal, temp mail, and more. All classification is local — no URLs sent to external servers. Main Language of the Project is Catalan.
+# 🛡️ Amygdal
 
-**sigues ningú, sigues res, sigues inrastrejable**
+**Fork de Firefox centrado en privacidad y seguridad, con navegador nativo en catalán.**
 
-Amygdal és un fork de Firefox centrat en **privacitat** i **seguretat**, creat com a navegador en català. Tota la classificació de reputació és **LOCAL** — cap URL, domini o hash s'envia a cap servidor extern, aixo es fa aixi per tal de preservar la integritat de les consultes i que no hi hagi ningu que pogui mirar les peticions i saber quines webs es consulten..
+![Language](https://img.shields.io/badge/UI-Catal%C3%A0-red) ![License](https://img.shields.io/badge/license-MPL--2.0-blue) ![Platform](https://img.shields.io/badge/platform-Windows-lightgrey)
+
+> *"sigues ningú, sigues res, sigues inrastrejable"*
+>
+> Amygdal es un fork de Firefox pensado para demostrar, con una implementación real y funcional, cómo se puede diseñar un navegador privacy-first: toda la clasificación de reputación de webs se calcula **100% en local**. Ninguna URL, dominio o hash sale nunca del equipo del usuario hacia un servidor externo, lo que elimina por diseño la posibilidad de que un tercero (incluido el propio proyecto) pueda ver qué webs visita alguien.
+>
+> 🔗 Sitio del proyecto: [amygdal.llucomella.com](https://amygdal.llucomella.com)
+>
+> ## Por qué existe este proyecto
+>
+> Nace de una pregunta muy concreta de arquitectura de seguridad: ¿es posible dar protección real contra tracking, phishing y malware sin depender de servicios cloud de terceros que ven cada URL que visita el usuario? Amygdal es la respuesta práctica: un motor de reputación local, con estructuras de datos en memoria de acceso O(1), cache con TTL, y una capa de actores del propio Firefox (JSWindowActors) para inyectar señales de seguridad en la UI sin tocar la privacidad del usuario.
+>
+> ## Funcionalidades
+>
+> | Módulo | Qué hace |
+> |---|---|
+> | 🛡️ **Reputación web local** | 424 dominios clasificados en 4 niveles (Fiable / Desconegut / Sospitós / Perill), guardados en `Sets` en memoria (O(1)). Se muestra como *badges* en buscadores, barra de URL y tooltips de enlaces, e intercepta clics sospechosos antes de navegar. |
+> | 🔒 **Buscador único: DuckDuckGo** | Google, Bing y Yahoo se eliminan de la configuración; no se pueden añadir otros motores, por diseño, para reducir superficie de tracking. |
+> | 🚫 **Bloqueo de anuncios nativo** | uBlock Origin integrado como *system addon* no desinstalable, en lugar de reinventar un bloqueador propio. |
+> | 🍪 **Eliminación de banners de cookies** | Detección en tres capas: ocultación CSS de los banners, limpieza del DOM, y listas de los 50 frameworks de consentimiento más usados (vía listas de uBlock). |
+> | 📧 **Temp Mail integrado** | Autocompletado de correos temporales (API de Guerrilla Mail) en formularios de registro, para reducir la huella de identidad real del usuario. |
+> | 🔑 **Generador de contraseñas** | Contraseñas fuertes y frases de paso integradas en el propio navegador. |
+> | 📥 **Protección de descargas** | Verificación SHA-256 de cada descarga contra la base de datos local de URLhaus. |
+> | 🔐 **Privacidad avanzada** | Total Cookie Protection, First-Party Isolation y borrado automático de datos de navegación. |
+>
+> ## Arquitectura
+>
+> ```
+> AmygdalReputationService (browser/modules/)
+>  ├─ 424 dominios trusted/suspicious/dangerous en Sets (O(1))
+>  ├─ nsIURIClassifier (Safe Browsing local si hay DB disponible)
+>  ├─ Cache LRU (TTL 10 min)
+>  │
+>  ├─→ AmygdalSERPChild/Parent      → badges en resultados de búsqueda
+>  ├─→ AmygdalLinkTooltipChild/Parent → tooltips de reputación en enlaces
+>  ├─→ ClickHandlerParent           → intercepción de clics sospechosos
+>  ├─→ browser-amygdalSafety.js     → badge en la barra de URL + popups
+>  └─→ DownloadIntegration          → verificación hash de descargas
+>
+> AmygdalCookieKillerChild   → eliminación de banners de cookies
+> TempMail                   → correo temporal (Guerrilla Mail API)
+> Password Generator         → generador de contraseñas nativo
+> ```
+>
+> ## Stack técnico
+>
+> | Tecnología | Uso |
+> |---|---|
+> | JavaScript (`.sys.mjs`, `.js`) | Lógica principal: actors, servicios, extensiones, UI |
+> | HTML/XUL | Interfaz del navegador, paneles, newtab |
+> | CSS | Estilos de badges, paneles, newtab |
+> | Python (`moz.build`) | Sistema de build de Firefox |
+> | NSIS | Instalador de Windows |
+> | Fluent (`.ftl`) | Localización / traducción |
+> | JSON | Configuración de motores de búsqueda y políticas |
+>
+> ## Estructura del repositorio
+>
+> Este repositorio contiene **únicamente los ficheros creados o modificados** respecto al código fuente de Firefox Nightly (no el navegador completo). Para compilarlo hace falta aplicar estos ficheros sobre el árbol de código de Mozilla.
+>
+> <details>
+ <summary><b>Ficheros creados</b>b></summary>summary>
  
-🌐 [amygdal.llucomella.com](https://amygdal.llucomella.com)
- 
----
- 
-## Funcionalitats
- 
-| Funcionalitat | Descripció |
-|---------------|------------|
-| 🛡️ Reputació web local | En total hi han 424 dominis classificats en Sets (O(1)), hi han 4 tipus de nivells, Fiable, Desconegut, Sospitós, Perill. Per fer-ho mes visual hem posat "Badges" als cercadors, barra URL, tooltips i intercepció de clics aixi quan el usuari navega de manera nativa ja te de una manera mes facil una idea del lloc web on entra. |
-| 🔒 DuckDuckGo exclusiu | Hem posat com a únic motor de cerca DuckDuckGo(DDG). Altres buscadors com Google, Bing i Yahoo eliminats. No es poden afegir nous motors per una qüestio de privacitat |
-| 🚫 Bloqueig d'anuncis | Hem afegit com a manera nativa la extensio de uBlock Origin es molt bona i no tenia sentit reinventar la roda, la hem integrat com a system addon (no desinstal·lable) |
-| 🍪 Eliminació de cookies banners | Per tal de evitar rastreig, i que ens agafin informació mentre naveguem, Amygdal elimina les cookies pero per evitar incidencies de que deixi webs sense funcionar hem fet una detecció a tres capes, primer ocultem les finestres de acceptar les cookies (CSS Injection), despres netejem el DOM, i finalment analitzem els 50 frameworks mes populars de cookies per bloquejarlos amb les llistes de uBlock |
-| 📧 Temp Mail | Per tal de millorar la privacitat del usuari, una bona praxis es utilitzar identitats "falses" que no siguin com la teva identitat real per evitar que els rastrejadors fagin un perfil de tu, per simplificar el us i fer-lo mes accesible a la gent, hem integrat de manera nativa a tots els formularis de inici/registre un boto per posar automaticament el correu temporal ho gem amb Guerrilla Mail que disposa de una API gratuita |
-| 🔑 Generador de contrasenyes | Contrasenyes fortes i frases de pas |
-| 📥 Protecció de descàrregues | Verificació SHA-256 contra base de dades local URLhaus |
-| 🔐 Privacitat avançada | Total Cookie Protection, First-Party Isolation, esborrat automàtic |
- 
-## Arquitectura
- 
-```
-AmygdalReputationService (browser/modules/)
-  424 dominis trusted / suspicious / dangerous (Sets en memòria, O(1))
-  nsIURIClassifier (Safe Browsing local, si DB disponible)
-  Cache LRU (10 min TTL)
-       |
-       +→ AmygdalSERPChild/Parent ("Badges" injectats directament a sota dels resultats de cerca)
-       +→ AmygdalLinkTooltipChild/Parent (tooltips en enllaços)
-       +→ ClickHandlerParent (intercepció de clics)
-       +→ browser-amygdalSafety.js (badge URL bar + popups)
-       +→ DownloadIntegration (hash check de les descàrregues)
- 
-AmygdalCookieKillerChild (eliminació de banners de cookies)
-TempMail (correu temporal via Guerrilla Mail API)
-Password Generator (generador de contrasenyes)
-```
- 
-## Fitxers del projecte
- 
-Aquest repositori conté **només els fitxers creats o modificats** per Amygdal. Per compilar el navegador necessites el codi font de Firefox Nightly i aplicar aquests fitxers a sobre.
- 
-### Fitxers creats
- 
-```
-browser/modules/AmygdalReputationService.sys.mjs      → Motor central de reputació
-browser/actors/AmygdalSERPChild.sys.mjs                → Badges als cercadors (child)
-browser/actors/AmygdalSERPParent.sys.mjs               → Badges als cercadors (parent)
-browser/actors/AmygdalLinkTooltipChild.sys.mjs          → Tooltips en enllaços (child)
-browser/actors/AmygdalLinkTooltipParent.sys.mjs         → Tooltips en enllaços (parent)
-browser/actors/AmygdalCookieKillerChild.sys.mjs         → Eliminació de cookie banners
-browser/base/content/browser-amygdalSafety.js           → Badge barra URL + popups
-browser/base/content/browser-tempmail.js                → Correu temporal
-browser/extensions/amygdal/temp-mail/                   → Extensió Temp Mail
-browser/extensions/amygdal/password-gen/                → Generador de contrasenyes
-browser/extensions/newtab/data/content/amygdal-settings.js → Configuració newtab
-browser/extensions/ublock0/extension/                   → uBlock Origin v1.70.0 (system addon)
-toolkit/components/downloads/AmygdalDownloadProtection.sys.mjs → Hash check descàrregues
-```
- 
-### Fitxers modificats
- 
-```
-browser/app/profile/firefox.js                          → Preferències de privacitat + system addon
-browser/app/distribution/policies.json                  → Política DuckDuckGo exclusiu
-browser/actors/ClickHandlerParent.sys.mjs               → Intercepció de clics sospitosos
-browser/actors/moz.build                                → Registre actors
-browser/modules/moz.build                               → Registre ReputationService
-browser/components/BrowserGlue.sys.mjs                  → Registre JSWindowActors
-browser/base/content/navigator-toolbox.inc.xhtml        → Badge XUL a la barra
-browser/base/content/browser.js                         → Crida onLocationChange
-browser/branding/unofficial/                            → Icones, noms, branding Amygdal
-browser/locales/en-US/installer/nsisstrings.properties  → Instal·lador en català
-browser/extensions/newtab/prerendered/activity-stream.html → Pàgina nova pestanya
-browser/extensions/moz.build                            → Registre extensions
-chrome/browser/content/browser/built_in_addons.json     → Registre uBlock
-services/settings/dumps/main/search-config-v2.json      → DuckDuckGo per defecte
-toolkit/components/downloads/DownloadIntegration.sys.mjs → Hash check integrat
-toolkit/components/downloads/moz.build                  → Registre AmygdalDownloadProtection
-```
- 
-## Com compilar
- 
-### Requisits
-- Windows 10/11
-- [Mozilla Build](https://ftp.mozilla.org/pub/mozilla/libraries/win32/MozillaBuildSetup-Latest.exe)
-- Visual Studio Build Tools amb C++ desktop development
-- Codi font de [Firefox Nightly](https://hg.mozilla.org/mozilla-central/)
-### Passos
- 
-```bash
-# 1. Descarrega el codi font de Firefox Nightly
-hg clone https://hg.mozilla.org/mozilla-central/ C:\firefox
- 
-# 2. Copia els fitxers d'Amygdal al codi font
-# (copia els fitxers d'aquest repositori mantenint l'estructura de directoris)
- 
-# 3. Obre mozilla-build
-C:\mozilla-build\start-shell.bat
- 
-# 4. Compila
-cd /c/firefox
-./mach build
- 
-# 5. Prova
-./mach run
- 
-# 6. Empaqueta
-./mach package
-```
- 
-L'instal·lador es genera a `obj-x86_64-pc-windows-msvc/dist/`.
- 
-## Tecnologies
- 
-| Llenguatge | Ús |
-|------------|-----|
-| JavaScript (.sys.mjs, .js) | Lògica principal: actors, serveis, extensions, UI |
-| HTML/XUL (.xhtml, .html) | Interfície del navegador, panels, newtab |
-| CSS | Estils de badges, panels, newtab |
-| Python (moz.build) | Sistema de build |
-| NSIS (.nsi) | Instal·lador de Windows |
-| Fluent (.ftl) | Localització / traducció |
-| JSON | Configuració de motors de cerca, polítiques |
- 
-## Llicència
- 
-[Mozilla Public License 2.0](LICENSE)
- 
-## Autor
- 
-Lluc Comella — [@GodCatv2](https://github.com/GodCatv2)          |          Andualem Luis Cendoya - [@Andu005](https://github.com/Andu005)
+ - `browser/modules/AmygdalReputationService.sys.mjs` — motor central de reputación
+ - - `browser/actors/AmygdalSERPChild/Parent.sys.mjs` — badges en buscadores
+   - - `browser/actors/AmygdalLinkTooltipChild/Parent.sys.mjs` — tooltips en enlaces
+     - - `browser/actors/AmygdalCookieKillerChild.sys.mjs` — eliminación de cookie banners
+       - - `browser/base/content/browser-amygdalSafety.js` — badge de barra de URL + popups
+         - - `browser/base/content/browser-tempmail.js` — correo temporal
+           - - `browser/extensions/amygdal/temp-mail/` — extensión Temp Mail
+             - - `browser/extensions/amygdal/password-gen/` — generador de contraseñas
+               - - `browser/extensions/newtab/data/content/amygdal-settings.js` — configuración newtab
+                 - - `browser/extensions/ublock0/extension/` — uBlock Origin v1.70.0 (system addon)
+                   - - `toolkit/components/downloads/AmygdalDownloadProtection.sys.mjs` — verificación hash de descargas
+                     -
+                     - </details>
+
+                     <details>
+                      <summary><b>Ficheros modificados</b>b></summary>summary>
+                     
+                     - `browser/app/profile/firefox.js` — preferencias de privacidad + registro del system addon
+                     - - `browser/app/distribution/policies.json` — política de buscador único (DuckDuckGo)
+                       - - `browser/actors/ClickHandlerParent.sys.mjs` — intercepción de clics sospechosos
+                         - - `browser/components/BrowserGlue.sys.mjs` — registro de JSWindowActors
+                           - - `browser/base/content/browser.js` — hook en `onLocationChange`
+                             - - `browser/branding/unofficial/` — branding de Amygdal
+                               - - `services/settings/dumps/main/search-config-v2.json` — DuckDuckGo por defecto
+                                 - - `toolkit/components/downloads/DownloadIntegration.sys.mjs` — integración de verificación hash
+                                   -
+                                   - </details>
+
+                                   ## Cómo compilar
+
+                                   **Requisitos:** Windows 10/11, Mozilla Build, Visual Studio Build Tools (C++ desktop development) y el código fuente de Firefox Nightly.
+
+                                   ```bash
+                                   # 1. Descargar el código fuente de Firefox Nightly
+                                   hg clone https://hg.mozilla.org/mozilla-central/ C:\firefox
+
+                                   # 2. Copiar los ficheros de Amygdal sobre el código fuente
+                                   #    manteniendo la estructura de directorios de este repositorio
+
+                                   # 3. Abrir Mozilla Build
+                                   C:\mozilla-build\start-shell.bat
+
+                                   # 4. Compilar
+                                   cd /c/firefox
+                                   ./mach build
+
+                                   # 5. Probar
+                                   ./mach run
+
+                                   # 6. Empaquetar
+                                   ./mach package
+                                   ```
+
+                                   El instalador se genera en `obj-x86_64-pc-windows-msvc/dist/`.
+
+                                   ## Licencia
+
+                                   [Mozilla Public License 2.0](./LICENSE)
+
+                                   ## Autoría
+
+                                   Desarrollado por **Lluc Comella** ([@GodCatv2](https://github.com/GodCatv2)) junto con **Andualem Luis Cendoya** ([@Andu005](https://github.com/Andu005)).</summary>
+                     </summary>
+</details>
